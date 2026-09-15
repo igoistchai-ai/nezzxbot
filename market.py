@@ -9,22 +9,24 @@ exchange = ccxt.okx({
 
     "enableRateLimit": True,
 
-    "options":{
-        "defaultType":"spot"
+    "options": {
+
+        "defaultType": settings.market_type
+
     }
 
 })
 
 
 
-def normalize(symbol):
+def normalize_symbol(symbol):
 
     symbol = symbol.upper()
 
 
     if "/" not in symbol:
 
-        symbol += "/USDT"
+        symbol = symbol + "/USDT"
 
 
     return symbol
@@ -32,23 +34,22 @@ def normalize(symbol):
 
 
 
+
 def candles(
         symbol,
-        timeframe="15m",
-        limit=None
+        timeframe="15m"
 ):
 
-
-    symbol = normalize(symbol)
+    symbol = normalize_symbol(symbol)
 
 
     data = exchange.fetch_ohlcv(
 
         symbol,
 
-        timeframe,
+        timeframe=timeframe,
 
-        limit=limit or settings.candle_limit
+        limit=settings.candle_limit
 
     )
 
@@ -90,9 +91,13 @@ def candles(
 
 
 
+
 def market_snapshot(
+
         symbol,
+
         timeframe="15m"
+
 ):
 
 
@@ -105,24 +110,32 @@ def market_snapshot(
     )
 
 
+    last = df.iloc[-1]
+
+
+
     return {
 
 
         "symbol":
-            normalize(symbol),
+
+            normalize_symbol(symbol),
+
 
 
         "timeframe":
+
             timeframe,
 
 
+
         "price":
-            float(
-                df.iloc[-1].close
-            ),
+
+            float(last.close),
 
 
-        "candles":[
+
+        "candles": [
 
 
             {
@@ -130,17 +143,22 @@ def market_snapshot(
                 "time":
                     str(row.timestamp),
 
+
                 "open":
                     float(row.open),
+
 
                 "high":
                     float(row.high),
 
+
                 "low":
                     float(row.low),
 
+
                 "close":
                     float(row.close),
+
 
                 "volume":
                     float(row.volume)
@@ -148,7 +166,7 @@ def market_snapshot(
             }
 
 
-            for _,row in df.iterrows()
+            for _, row in df.iterrows()
 
         ]
 

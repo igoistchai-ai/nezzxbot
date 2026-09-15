@@ -10,27 +10,25 @@ client = OpenAI(
 
     api_key=settings.openai_key,
 
-    base_url=settings.openai_base_url
+    base_url="https://riskradarai.ru/v1"
 
 )
 
 
 
-SYSTEM = """
+SYSTEM_PROMPT = """
 
-Ты быстрый криптоаналитик.
+Ты профессиональный криптоаналитик.
 
-Делай технический анализ.
+Делай быстрый технический анализ.
 
-Не пиши длинно.
-
-Формат:
+Ответ строго:
 
 Монета:
 Цена:
 
 Сигнал:
-LONG/SHORT/WAIT
+LONG / SHORT / WAIT
 
 Уверенность:
 
@@ -40,63 +38,84 @@ Stop Loss:
 
 Take Profit:
 
-Причина:
+Причины:
 
-Риск:
+Риски:
+
+
+Не выдумывай данные.
+Если нет хорошего входа — WAIT.
 
 """
 
 
 
-def analyze_market(data):
+
+def analyze_market(
+        market,
+        technical
+):
 
 
-    try:
+    payload = {
+
+        "market": market,
+
+        "technical": technical
+
+    }
 
 
-        response = client.chat.completions.create(
 
-            model=settings.openai_model,
+    response = client.chat.completions.create(
 
 
-            messages=[
+        model=settings.openai_model,
 
-                {
+
+        messages=[
+
+
+            {
+
                 "role":"system",
-                "content":SYSTEM
-                },
+
+                "content":SYSTEM_PROMPT
+
+            },
 
 
-                {
+            {
+
                 "role":"user",
+
                 "content":json.dumps(
-                    data,
+
+                    payload,
+
                     ensure_ascii=False
+
                 )
-                }
 
-            ]
+            }
 
-        )
+        ]
 
-
-        return (
-            response
-            .choices[0]
-            .message
-            .content
-        )
+    )
 
 
-
-    except Exception as e:
-
-        return f"AI ошибка: {e}"
+    return (
+        response
+        .choices[0]
+        .message
+        .content
+    )
 
 
 
 
-def chat_ai(message, context=None):
+
+def chat_ai(message):
 
 
     response = client.chat.completions.create(
@@ -106,14 +125,22 @@ def chat_ai(message, context=None):
 
         messages=[
 
-            {
-            "role":"system",
-            "content":SYSTEM
-            },
 
             {
-            "role":"user",
-            "content":message
+
+                "role":"system",
+
+                "content":SYSTEM_PROMPT
+
+            },
+
+
+            {
+
+                "role":"user",
+
+                "content":message
+
             }
 
         ]

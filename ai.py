@@ -1,21 +1,20 @@
-import json
 from openai import OpenAI
-
 from config import settings
 
 
 client = OpenAI(
-    api_key=settings.openai_key,
-    base_url=settings.openai_base_url
+    base_url=settings.openai_base_url,
+    api_key=settings.openai_key
 )
 
 
-SYSTEM_PROMPT = """
-Ты профессиональный криптоаналитик.
+SYSTEM = """
+Ты криптоаналитик.
 
-Анализируй только по переданным данным.
+Тебе приходят готовые данные от Python.
+Не рассчитывай индикаторы сам.
 
-Формат ответа:
+Ответ:
 
 🪙 Монета:
 💰 Цена:
@@ -23,93 +22,66 @@ SYSTEM_PROMPT = """
 📊 Сигнал:
 LONG / SHORT / WAIT
 
-🎯 Уверенность:
-0-100%
-
-📍 Вход:
-
+🎯 Вход:
 🛑 Stop Loss:
+✅ Take Profit:
 
-✅ Take Profit 1:
-
-✅ Take Profit 2:
-
+Уверенность:
 
 Причины:
 - тренд
-- индикаторы
+- RSI
 - объём
-- свечные модели
-
 
 Риск:
-
-Не обещай прибыль.
-Если сигнала нет — пиши WAIT.
-Ответ короткий и точный.
 """
 
 
-def analyze_market(
-        market,
-        technical
-):
+def analyze_market(data):
 
-    data = {
+    try:
 
-        "market": market,
+        response = client.chat.completions.create(
 
-        "technical": technical
+            model=settings.openai_model,
 
-    }
+            messages=[
 
+                {
+                    "role": "system",
+                    "content": SYSTEM
+                },
 
-    response = client.chat.completions.create(
+                {
+                    "role": "user",
+                    "content": str(data)
+                }
 
-        model=settings.openai_model,
+            ]
 
-        messages=[
+        )
 
-            {
-                "role": "system",
-                "content": SYSTEM_PROMPT
-            },
-
-            {
-                "role": "user",
-                "content": json.dumps(
-                    data,
-                    ensure_ascii=False
-                )
-            }
-
-        ]
-
-    )
+        return response.choices[0].message.content
 
 
-    return response.choices[0].message.content
+    except Exception as e:
+
+        return f"Ошибка AI: {e}"
 
 
 
 
-
-def chat_ai(message):
+def chat_ai(text):
 
     response = client.chat.completions.create(
 
         model=settings.openai_model,
 
         messages=[
-
-            {
-                "role":"system",
-                "content":SYSTEM_PROMPT
-            },
 
             {
                 "role":"user",
-                "content":message
+                "content":text
             }
 
         ]

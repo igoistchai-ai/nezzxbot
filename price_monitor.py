@@ -7,23 +7,32 @@ from alerts import check_price
 
 
 
+
+
+SYMBOLS = [
+
+    "BTC-USDT",
+
+    "ETH-USDT",
+
+    "LTC-USDT",
+
+    "SOL-USDT",
+
+    "DOGE-USDT"
+
+]
+
+
+
+
+
 async def monitor_prices(bot):
 
 
     url = (
         "wss://ws.okx.com:8443/ws/v5/public"
     )
-
-
-    symbols = [
-
-        "BTC-USDT",
-        "ETH-USDT",
-        "LTC-USDT",
-        "SOL-USDT",
-        "DOGE-USDT"
-
-    ]
 
 
 
@@ -34,7 +43,13 @@ async def monitor_prices(bot):
 
 
             async with websockets.connect(
-                url
+
+                url,
+
+                ping_interval=20,
+
+                ping_timeout=20
+
             ) as ws:
 
 
@@ -55,7 +70,7 @@ async def monitor_prices(bot):
 
                             }
 
-                            for symbol in symbols
+                            for symbol in SYMBOLS
 
                         ]
 
@@ -65,14 +80,20 @@ async def monitor_prices(bot):
 
 
 
+                print(
+                    "PRICE MONITOR STARTED"
+                )
+
+
+
                 while True:
 
 
-                    msg = await ws.recv()
+                    message = await ws.recv()
 
 
-                    data = json.loads(
-                        msg
+                    data=json.loads(
+                        message
                     )
 
 
@@ -82,26 +103,29 @@ async def monitor_prices(bot):
 
 
 
-                    prices = {}
+                    prices={}
 
 
 
                     for item in data["data"]:
 
 
-                        symbol = (
+                        symbol=(
 
                             item["instId"]
 
                             .replace(
+
                                 "-",
+
                                 "/"
+
                             )
 
                         )
 
 
-                        prices[symbol] = float(
+                        prices[symbol]=float(
 
                             item["last"]
 
@@ -109,36 +133,35 @@ async def monitor_prices(bot):
 
 
 
-                    alerts = check_price(
+                    triggered = check_price(
+
                         prices
+
                     )
 
 
 
-                    for alert in alerts:
+                    for alert in triggered:
 
 
                         await bot.send_message(
 
                             chat_id=int(
+
                                 alert["user"]
+
                             ),
 
 
-                            text=f"""
+                            text=(
 
-🚨 Цена достигнута!
+                                "🚨 ЦЕНА ДОСТИГНУТА\n\n"
 
+                                f"🪙 {alert['symbol']}\n"
 
-🪙 Монета:
-{alert['symbol']}
+                                f"💰 Цена: {alert['price']}"
 
-
-💰 Цена:
-{alert['price']}
-
-
-"""
+                            )
 
                         )
 
@@ -154,8 +177,11 @@ async def monitor_prices(bot):
 
 
             print(
-                "WebSocket error:",
+
+                "Monitor error:",
+
                 e
+
             )
 
 

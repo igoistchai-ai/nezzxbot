@@ -2,19 +2,13 @@ import pandas as pd
 
 
 
-def rsi_calc(series, period=14):
+def calculate_rsi(series, period=14):
 
     delta = series.diff()
 
-    gain = delta.where(
-        delta > 0,
-        0
-    )
+    gain = delta.clip(lower=0)
 
-    loss = -delta.where(
-        delta < 0,
-        0
-    )
+    loss = -delta.clip(upper=0)
 
 
     avg_gain = gain.rolling(
@@ -31,7 +25,7 @@ def rsi_calc(series, period=14):
 
 
     return 100 - (
-        100 / (1 + rs)
+        100/(1+rs)
     )
 
 
@@ -41,84 +35,94 @@ def rsi_calc(series, period=14):
 def scan(df):
 
 
-    data = df.copy()
+    df=df.copy()
 
 
-    data["EMA20"] = (
-        data.close
+    df["EMA20"] = (
+        df.close
         .ewm(span=20)
         .mean()
     )
 
 
-    data["EMA50"] = (
-        data.close
+    df["EMA50"] = (
+        df.close
         .ewm(span=50)
         .mean()
     )
 
 
-    data["EMA200"] = (
-        data.close
-        .ewm(span=200)
-        .mean()
+    df["RSI"] = calculate_rsi(
+        df.close
     )
 
 
-    data["RSI"] = rsi_calc(
-        data.close
+    last=df.iloc[-1]
+
+
+    price=float(
+        last.close
     )
-
-
-    last = data.iloc[-1]
 
 
     if last.EMA20 > last.EMA50:
 
-        trend = "LONG"
+        signal="LONG"
+
+        entry=price
+
+        tp=price*1.02
+
+        sl=price*0.99
+
 
     else:
 
-        trend = "SHORT"
+        signal="SHORT"
+
+        entry=price
+
+        tp=price*0.98
+
+        sl=price*1.01
+
 
 
 
     return {
 
 
-        "price":
-        round(float(last.close),4),
+        "price":round(price,6),
+
+        "signal":signal,
+
+        "entry":round(entry,6),
+
+        "tp":round(tp,6),
+
+        "sl":round(sl,6),
 
 
-        "trend":
-        trend,
+        "rsi":round(
+            float(last.RSI),
+            2
+        ),
 
 
-        "rsi":
-        round(float(last.RSI),2),
+        "ema20":round(
+            float(last.EMA20),
+            6
+        ),
 
 
-        "ema20":
-        round(float(last.EMA20),4),
+        "ema50":round(
+            float(last.EMA50),
+            6
+        ),
 
 
-        "ema50":
-        round(float(last.EMA50),4),
-
-
-        "ema200":
-        round(float(last.EMA200),4),
-
-
-        "volume":
-        round(float(last.volume),2),
-
-
-        "high":
-        round(float(data.high.tail(50).max()),4),
-
-
-        "low":
-        round(float(data.low.tail(50).min()),4)
+        "volume":float(
+            last.volume
+        )
 
     }

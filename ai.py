@@ -7,24 +7,25 @@ from config import settings
 
 
 
-prompt_file = Path(
+PROMPT_FILE = Path(
     __file__
 ).parent / "master_prompt.txt"
 
 
 
-if prompt_file.exists():
+if PROMPT_FILE.exists():
 
-    SYSTEM_PROMPT = prompt_file.read_text(
+    SYSTEM_PROMPT = PROMPT_FILE.read_text(
         encoding="utf-8"
     )
 
 else:
 
     SYSTEM_PROMPT = """
-Ты AI криптоаналитик.
+Ты профессиональный криптоаналитик.
 Анализируй только переданные данные.
 """
+
 
 
 client = OpenAI(
@@ -40,9 +41,10 @@ client = OpenAI(
 def analyze_market(data):
 
 
-    request = f"""
+    prompt = f"""
 
-Проанализируй график:
+Проанализируй рынок:
+
 
 {json.dumps(
     data,
@@ -52,45 +54,40 @@ def analyze_market(data):
 
 
 
-Дай ответ:
+Ответ:
 
 Монета:
+
 Цена:
 
 Тренд:
 
-Решение:
+Сигнал:
 LONG / SHORT / WAIT
 
 
 Уверенность:
 
-Вход:
+Точка входа:
 
 Stop Loss:
 
-TP1:
-
-TP2:
-
-TP3:
+Take Profit:
 
 
-Объяснение:
+Причины:
 
 Риски:
 
 
-Не обещай прибыль.
-Если сигнала нет — WAIT.
-
+Не гарантируй прибыль.
 """
+
 
 
     try:
 
-
-        result = client.chat.completions.create(
+        response = client.chat.completions.create(
 
             model=settings.openai_model,
 
@@ -102,26 +99,21 @@ TP3:
                     "content":SYSTEM_PROMPT
                 },
 
-
                 {
                     "role":"user",
-                    "content":request
+                    "content":prompt
                 }
 
-            ],
-
-
-            temperature=0.2
+            ]
 
         )
 
 
-        return result.choices[0].message.content
+        return response.choices[0].message.content
 
 
 
     except Exception as e:
-
 
         return (
             "Ошибка AI:\n"
@@ -132,13 +124,15 @@ TP3:
 
 
 
-def chat_ai(message, context=None):
-
+def chat_ai(
+        message,
+        context=None
+):
 
     context = context or {}
 
 
-    request = f"""
+    prompt = f"""
 
 Контекст:
 
@@ -155,9 +149,10 @@ def chat_ai(message, context=None):
 """
 
 
+
     try:
 
-        result = client.chat.completions.create(
+        response = client.chat.completions.create(
 
             model=settings.openai_model,
 
@@ -171,7 +166,7 @@ def chat_ai(message, context=None):
 
                 {
                     "role":"user",
-                    "content":request
+                    "content":prompt
                 }
 
             ]
@@ -179,12 +174,11 @@ def chat_ai(message, context=None):
         )
 
 
-        return result.choices[0].message.content
+        return response.choices[0].message.content
 
 
 
     except Exception as e:
-
 
         return (
             "Ошибка Chat AI:\n"

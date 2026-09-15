@@ -2,72 +2,59 @@ import mplfinance as mpf
 from pathlib import Path
 
 
+def create_chart(df, symbol, timeframe="15m"):
 
-def create_chart(
-        df,
-        symbol,
-        timeframe="15m"
-):
+    data = df.copy()
 
 
-    data=df.copy()
+    # берём только последние свечи
+    data = data.tail(100).copy()
 
 
     data["EMA20"] = (
-        data.close
+        data["close"]
         .ewm(span=20)
         .mean()
     )
 
 
     data["EMA50"] = (
-        data.close
+        data["close"]
         .ewm(span=50)
         .mean()
     )
 
 
-
-    data=data.rename(
-
+    data = data.rename(
         columns={
-
             "timestamp":"Date",
-
             "open":"Open",
-
             "high":"High",
-
             "low":"Low",
-
             "close":"Close",
-
             "volume":"Volume"
-
         }
-
     )
 
 
-    if "Date" in data:
-
-        data=data.set_index(
-            "Date"
-        )
-
-
-
-    folder=Path(
-        "charts"
+    data["Date"] = data["Date"].astype(
+        "datetime64[ns]"
     )
 
+
+    data = data.set_index(
+        "Date"
+    )
+
+
+    folder = Path("charts")
     folder.mkdir(
         exist_ok=True
     )
 
 
-    path=folder / (
-        symbol.replace("/","_")
+    path = folder / (
+        symbol.replace("/", "_")
         +
         "_"
         +
@@ -77,46 +64,40 @@ def create_chart(
     )
 
 
-
-    plots=[
+    addplots = [
 
         mpf.make_addplot(
-
             data["EMA20"],
-
             color="blue"
-
         ),
 
         mpf.make_addplot(
-
             data["EMA50"],
-
             color="orange"
-
         )
 
     ]
 
 
-
     mpf.plot(
 
-        data.tail(100),
+        data,
 
         type="candle",
 
-        volume=True,
-
         style="charles",
 
-        addplot=plots,
+        volume=True,
+
+        addplot=addplots,
 
         title=f"{symbol} {timeframe}",
 
-        savefig=str(path),
-
-        figsize=(14,8)
+        savefig={
+            "fname":str(path),
+            "dpi":120,
+            "bbox_inches":"tight"
+        }
 
     )
 

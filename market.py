@@ -4,85 +4,61 @@ import pandas as pd
 from config import settings
 
 
-
 exchange = ccxt.okx({
-
     "enableRateLimit": True,
-
     "options": {
-
-        "defaultType": settings.market_type
-
+        "defaultType": "spot"
     }
-
 })
 
 
-
-def normalize_symbol(symbol):
+def normalize(symbol):
 
     symbol = symbol.upper()
 
-
     if "/" not in symbol:
-
-        symbol = symbol + "/USDT"
-
+        symbol += "/USDT"
 
     return symbol
 
 
 
-
-
 def candles(
         symbol,
-        timeframe="15m"
+        timeframe="15m",
+        limit=100
 ):
 
-    symbol = normalize_symbol(symbol)
+    symbol = normalize(symbol)
 
 
     data = exchange.fetch_ohlcv(
 
         symbol,
 
-        timeframe=timeframe,
+        timeframe,
 
-        limit=settings.candle_limit
+        limit=limit
 
     )
 
 
     df = pd.DataFrame(
-
         data,
-
         columns=[
-
             "timestamp",
-
             "open",
-
             "high",
-
             "low",
-
             "close",
-
             "volume"
-
         ]
-
     )
 
 
     df["timestamp"] = pd.to_datetime(
-
         df["timestamp"],
-
         unit="ms"
-
     )
 
 
@@ -91,82 +67,43 @@ def candles(
 
 
 
-
 def market_snapshot(
-
         symbol,
-
         timeframe="15m"
-
 ):
 
-
     df = candles(
-
         symbol,
-
-        timeframe
-
+        timeframe,
+        100
     )
 
 
     last = df.iloc[-1]
 
 
-
     return {
 
+        "symbol": normalize(symbol),
 
-        "symbol":
-
-            normalize_symbol(symbol),
-
-
-
-        "timeframe":
-
-            timeframe,
-
-
-
-        "price":
-
+        "price": round(
             float(last.close),
-
-
+            4
+        ),
 
         "candles": [
 
-
             {
 
-                "time":
-                    str(row.timestamp),
-
-
-                "open":
-                    float(row.open),
-
-
-                "high":
-                    float(row.high),
-
-
-                "low":
-                    float(row.low),
-
-
-                "close":
-                    float(row.close),
-
-
-                "volume":
-                    float(row.volume)
+            "open":float(x.open),
+            "high":float(x.high),
+            "low":float(x.low),
+            "close":float(x.close),
+            "volume":float(x.volume)
 
             }
 
-
-            for _, row in df.iterrows()
+            for _,x in df.tail(20).iterrows()
 
         ]
 

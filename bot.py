@@ -17,24 +17,21 @@ from config import (
     validate_settings
 )
 
-
 from market import (
     candles,
     market_snapshot
 )
 
-
 from chart import create_chart
 
+from scanner import scan
 
 from ai import (
     analyze_market,
     chat_ai
 )
 
-
-from scanner import scan
-
+from alerts import add_alert
 
 
 bot = Bot(
@@ -65,16 +62,17 @@ def get_user(uid):
 
         users[uid] = {
 
-            "symbol": "BTC/USDT",
+            "symbol":"BTC/USDT",
 
-            "timeframe": "15m",
+            "timeframe":"15m",
 
-            "chat": False,
+            "chat":False,
 
-            "last": {}
+            "alert":False,
+
+            "last":{}
 
         }
-
 
     return users[uid]
 
@@ -82,13 +80,13 @@ def get_user(uid):
 
 
 
-def main_menu():
+def menu():
 
     kb = InlineKeyboardBuilder()
 
 
     kb.button(
-        text="🚀 Начать анализ",
+        text="🚀 Быстрый анализ",
         callback_data="analyze"
     )
 
@@ -102,6 +100,12 @@ def main_menu():
     kb.button(
         text="🪙 Монета",
         callback_data="coins"
+    )
+
+
+    kb.button(
+        text="🔔 Уведомление цены",
+        callback_data="alert"
     )
 
 
@@ -125,14 +129,11 @@ def coin_menu():
     kb = InlineKeyboardBuilder()
 
 
-    for coin in SYMBOLS:
+    for c in SYMBOLS:
 
         kb.button(
-
-            text=coin,
-
-            callback_data=f"coin:{coin}"
-
+            text=c,
+            callback_data=f"coin:{c}"
         )
 
 
@@ -145,12 +146,8 @@ def coin_menu():
 
 
 
-@dp.message(
-    CommandStart()
-)
-async def start(
-        message: Message
-):
+@dp.message(CommandStart())
+async def start(message:Message):
 
     get_user(
         message.from_user.id
@@ -159,9 +156,9 @@ async def start(
 
     await message.answer(
 
-        "NEZZX GRAFIK AI\nВыбери действие:",
+        "NEZZX GRAFIK AI\n\nВыбери действие:",
 
-        reply_markup=main_menu()
+        reply_markup=menu()
 
     )
 
@@ -169,23 +166,21 @@ async def start(
 
 
 
-# ==========================
-# !график BTC
-# ==========================
+# =====================
+# ГРАФИК
+# =====================
 
 
 @dp.message(
     F.text.lower().startswith("!график")
 )
-async def graphic(
-        message: Message
-):
+async def graphic(message:Message):
 
 
     args = message.text.split()
 
 
-    if len(args) < 2:
+    if len(args)<2:
 
         await message.answer(
             "Пример:\n!график BTC"
@@ -195,44 +190,33 @@ async def graphic(
 
 
 
-    coin = args[1].upper()
+    symbol=args[1].upper()
 
 
+    if "/" not in symbol:
 
-    if "/" not in coin:
-
-        coin += "/USDT"
-
-
-
-    if coin not in SYMBOLS:
-
-        await message.answer(
-            "Монета не поддерживается"
-        )
-
-        return
+        symbol += "/USDT"
 
 
 
     await message.answer(
-        "📊 Строю график..."
+        "📊 Создаю график..."
     )
 
 
     try:
 
-
         df = await asyncio.to_thread(
 
             candles,
 
-            coin,
+            symbol,
 
-            "15m"
+            "15m",
+
+            100
 
         )
-
 
 
         file = await asyncio.to_thread(
@@ -241,19 +225,16 @@ async def graphic(
 
             df,
 
-            coin,
+            symbol,
 
             "15m"
 
         )
 
 
-
         await message.answer_photo(
 
-            photo=FSInputFile(file),
-
-            caption=f"{coin} | 15M"
+            photo=FSInputFile(file)
 
         )
 
@@ -262,21 +243,23 @@ async def graphic(
 
 
         await message.answer(
-
-            f"Ошибка графика:\n{e}"
-
+            f"Ошибка:\n{e}"
         )
 
 
 
 
 
+# =====================
+# ВЫБОР МОНЕТЫ
+# =====================
+
+
 @dp.callback_query(
-    F.data == "coins"
+    F.data=="coins"
 )
-async def coins(
-        call: CallbackQuery
-):
+async def coins(call:CallbackQuery):
+
 
     await call.message.edit_text(
 
@@ -293,16 +276,15 @@ async def coins(
 @dp.callback_query(
     F.data.startswith("coin:")
 )
-async def choose_coin(
-        call: CallbackQuery
-):
+async def choose_coin(call:CallbackQuery):
 
-    coin = call.data.split(":")[1]
+
+    coin=call.data.split(":")[1]
 
 
     get_user(
         call.from_user.id
-    )["symbol"] = coin
+    )["symbol"]=coin
 
 
 
@@ -310,7 +292,7 @@ async def choose_coin(
 
         f"Выбрано: {coin}",
 
-        reply_markup=main_menu()
+        reply_markup=menu()
 
     )
 
@@ -318,22 +300,25 @@ async def choose_coin(
 
 
 
-@dp.callback_query(
-    F.data == "analyze"
-)
-async def analyze(
-        call: CallbackQuery
-):
+# =====================
+# БЫСТРЫЙ АНАЛИЗ
+# =====================
 
-    user = get_user(
+
+@dp.callback_query(
+    F.data=="analyze"
+)
+async def analyze(call:CallbackQuery):
+
+
+    user=get_user(
         call.from_user.id
     )
 
 
     await call.message.answer(
-        "🔍 Сканирую рынок..."
+        "⚡ Быстрый анализ..."
     )
-
 
 
     try:
@@ -350,11 +335,17 @@ async def analyze(
         )
 
 
+        df = await asyncio.to_thread(
 
-        df = pd.DataFrame(
-            data["candles"]
+            candles,
+
+            user["symbol"],
+
+            user["timeframe"],
+
+            100
+
         )
-
 
 
         technical = scan(df)
@@ -367,9 +358,9 @@ async def analyze(
 
             {
 
-                "market": data,
+                "market":data,
 
-                "technical": technical
+                "technical":technical
 
             }
 
@@ -377,7 +368,7 @@ async def analyze(
 
 
 
-        user["last"] = result
+        user["last"]=result
 
 
 
@@ -386,103 +377,96 @@ async def analyze(
         )
 
 
-
     except Exception as e:
 
 
         await call.message.answer(
-
             f"Ошибка анализа:\n{e}"
-
         )
 
 
 
 
 
-@dp.callback_query(
-    F.data == "chart"
-)
-async def chart(
-        call: CallbackQuery
-):
+# =====================
+# ГРАФИК КНОПКА
+# =====================
 
-    user = get_user(
+
+@dp.callback_query(
+    F.data=="chart"
+)
+async def chart(call:CallbackQuery):
+
+
+    user=get_user(
         call.from_user.id
     )
 
 
     await call.message.answer(
-        "📈 Создаю график..."
+        "📈 Рисую..."
+    )
+
+
+    df=await asyncio.to_thread(
+
+        candles,
+
+        user["symbol"],
+
+        "15m",
+
+        100
+
+    )
+
+
+    file=await asyncio.to_thread(
+
+        create_chart,
+
+        df,
+
+        user["symbol"],
+
+        "15m"
+
+    )
+
+
+    await call.message.answer_photo(
+
+        photo=FSInputFile(file)
+
     )
 
 
 
-    try:
 
 
-        df = await asyncio.to_thread(
-
-            candles,
-
-            user["symbol"],
-
-            user["timeframe"]
-
-        )
-
-
-
-        file = await asyncio.to_thread(
-
-            create_chart,
-
-            df,
-
-            user["symbol"],
-
-            user["timeframe"]
-
-        )
-
-
-
-        await call.message.answer_photo(
-
-            photo=FSInputFile(file)
-
-        )
-
-
-    except Exception as e:
-
-
-        await call.message.answer(
-
-            f"Ошибка графика:\n{e}"
-
-        )
-
-
-
+# =====================
+# ALERT
+# =====================
 
 
 @dp.callback_query(
-    F.data == "chat"
+    F.data=="alert"
 )
-async def chat_enable(
-        call: CallbackQuery
-):
+async def alert(call:CallbackQuery):
 
-    get_user(
+
+    user=get_user(
         call.from_user.id
-    )["chat"] = True
+    )
 
+
+    user["alert"]=True
 
 
     await call.message.answer(
 
-        "💬 Chat AI включен"
+        "🔔 Введи цену.\n\nПример:\n100000"
 
     )
 
@@ -491,19 +475,65 @@ async def chat_enable(
 
 
 @dp.message()
-async def chat(
-        message: Message
-):
+async def text(message:Message):
 
-    user = get_user(
+
+    user=get_user(
         message.from_user.id
     )
+
+
+    # ввод цены
+
+    if user.get("alert"):
+
+
+        try:
+
+            price=float(
+                message.text
+            )
+
+
+            add_alert(
+
+                message.from_user.id,
+
+                user["symbol"],
+
+                price
+
+            )
+
+
+            user["alert"]=False
+
+
+            await message.answer(
+
+                f"🔔 Уведомление создано\n"
+                f"{user['symbol']} → {price}"
+
+            )
+
+
+            return
+
+
+        except:
+
+            pass
+
+
+
+
+    # CHAT AI
 
 
     if user["chat"]:
 
 
-        answer = await asyncio.to_thread(
+        answer=await asyncio.to_thread(
 
             chat_ai,
 
@@ -522,6 +552,27 @@ async def chat(
 
 
 
+@dp.callback_query(
+    F.data=="chat"
+)
+async def chat(call:CallbackQuery):
+
+
+    get_user(
+        call.from_user.id
+    )["chat"]=True
+
+
+    await call.message.answer(
+
+        "💬 Chat AI включён"
+
+    )
+
+
+
+
+
 async def main():
 
     validate_settings()
@@ -529,4 +580,4 @@ async def main():
 
     await dp.start_polling(
         bot
-        )
+    )

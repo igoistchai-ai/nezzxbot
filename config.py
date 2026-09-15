@@ -5,15 +5,12 @@ from dataclasses import dataclass
 @dataclass
 class Settings:
 
-    # Telegram
 
     telegram_token: str = os.getenv(
         "TELEGRAM_BOT_TOKEN",
         ""
     )
 
-
-    # AI API (RiskRadar)
 
     openai_key: str = os.getenv(
         "OPENAI_API_KEY",
@@ -33,23 +30,11 @@ class Settings:
     )
 
 
-
-    # Биржа
-
     exchange: str = os.getenv(
         "EXCHANGE",
         "okx"
     )
 
-
-    market_type: str = os.getenv(
-        "MARKET_TYPE",
-        "spot"
-    )
-
-
-
-    # Анализ
 
     timeframe: str = os.getenv(
         "TIMEFRAME",
@@ -65,23 +50,12 @@ class Settings:
     )
 
 
-
-    # Render
-
-    port: int = int(
-        os.getenv(
-            "PORT",
-            "4000"
-        )
-    )
-
-
-
 settings = Settings()
 
 
 
 def validate():
+
 
     errors = []
 
@@ -89,7 +63,7 @@ def validate():
     if not settings.telegram_token:
 
         errors.append(
-            "TELEGRAM_BOT_TOKEN"
+            "TELEGRAM_TOKEN"
         )
 
 
@@ -104,8 +78,10 @@ def validate():
 
         raise Exception(
 
-            "Отсутствуют переменные: "
+            "Нет переменных: "
+
             +
+
             ", ".join(errors)
 
         )

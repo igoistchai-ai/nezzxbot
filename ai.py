@@ -1,54 +1,53 @@
 import json
-
 from openai import OpenAI
 
 from config import settings
 
 
-
 client = OpenAI(
-
     api_key=settings.openai_key,
-
-    base_url="https://riskradarai.ru/v1"
-
+    base_url=settings.openai_base_url
 )
 
 
-
 SYSTEM_PROMPT = """
-
 Ты профессиональный криптоаналитик.
 
-Делай быстрый технический анализ.
+Анализируй только по переданным данным.
 
-Ответ строго:
+Формат ответа:
 
-Монета:
-Цена:
+🪙 Монета:
+💰 Цена:
 
-Сигнал:
+📊 Сигнал:
 LONG / SHORT / WAIT
 
-Уверенность:
+🎯 Уверенность:
+0-100%
 
-Вход:
+📍 Вход:
 
-Stop Loss:
+🛑 Stop Loss:
 
-Take Profit:
+✅ Take Profit 1:
+
+✅ Take Profit 2:
+
 
 Причины:
+- тренд
+- индикаторы
+- объём
+- свечные модели
 
-Риски:
 
+Риск:
 
-Не выдумывай данные.
-Если нет хорошего входа — WAIT.
-
+Не обещай прибыль.
+Если сигнала нет — пиши WAIT.
+Ответ короткий и точный.
 """
-
-
 
 
 def analyze_market(
@@ -56,8 +55,7 @@ def analyze_market(
         technical
 ):
 
-
-    payload = {
+    data = {
 
         "market": market,
 
@@ -66,37 +64,23 @@ def analyze_market(
     }
 
 
-
     response = client.chat.completions.create(
-
 
         model=settings.openai_model,
 
-
         messages=[
 
-
             {
-
-                "role":"system",
-
-                "content":SYSTEM_PROMPT
-
+                "role": "system",
+                "content": SYSTEM_PROMPT
             },
 
-
             {
-
-                "role":"user",
-
-                "content":json.dumps(
-
-                    payload,
-
+                "role": "user",
+                "content": json.dumps(
+                    data,
                     ensure_ascii=False
-
                 )
-
             }
 
         ]
@@ -104,12 +88,7 @@ def analyze_market(
     )
 
 
-    return (
-        response
-        .choices[0]
-        .message
-        .content
-    )
+    return response.choices[0].message.content
 
 
 
@@ -117,30 +96,20 @@ def analyze_market(
 
 def chat_ai(message):
 
-
     response = client.chat.completions.create(
 
         model=settings.openai_model,
 
-
         messages=[
 
-
             {
-
                 "role":"system",
-
                 "content":SYSTEM_PROMPT
-
             },
 
-
             {
-
                 "role":"user",
-
                 "content":message
-
             }
 
         ]
@@ -148,9 +117,4 @@ def chat_ai(message):
     )
 
 
-    return (
-        response
-        .choices[0]
-        .message
-        .content
-    )
+    return response.choices[0].message.content

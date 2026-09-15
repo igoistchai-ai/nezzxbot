@@ -5,14 +5,14 @@ alerts = {}
 def add_alert(
         user_id,
         symbol,
-        target_price
+        price
 ):
 
-    alerts[user_id] = {
+    alerts[str(user_id)] = {
 
         "symbol": symbol,
 
-        "price": float(target_price)
+        "price": float(price)
 
     }
 
@@ -20,13 +20,12 @@ def add_alert(
 
 
 
-def remove_alert(
-        user_id
-):
+def remove_alert(user_id):
 
-    if user_id in alerts:
-
-        del alerts[user_id]
+    alerts.pop(
+        str(user_id),
+        None
+    )
 
 
 
@@ -40,18 +39,18 @@ def get_alerts():
 
 
 
-def check_price(
-        prices
-):
-
-    triggered = []
+def check_price(prices):
 
 
-    for user, alert in list(
+    result = []
+
+
+    for user, data in list(
         alerts.items()
     ):
 
-        symbol = alert["symbol"]
+
+        symbol = data["symbol"]
 
 
         if symbol in prices:
@@ -63,14 +62,14 @@ def check_price(
 
 
             target = float(
-                alert["price"]
+                data["price"]
             )
 
 
             if current >= target:
 
 
-                triggered.append({
+                result.append({
 
                     "user": user,
 
@@ -85,4 +84,4 @@ def check_price(
 
 
 
-    return triggered
+    return result

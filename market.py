@@ -1,15 +1,17 @@
+import time
 import ccxt
 import pandas as pd
-
-from config import settings
 
 
 exchange = ccxt.okx({
     "enableRateLimit": True,
-    "options": {
-        "defaultType": "spot"
-    }
 })
+
+
+CACHE = {}
+
+CACHE_TIME = 2
+
 
 
 def normalize(symbol):
@@ -23,20 +25,32 @@ def normalize(symbol):
 
 
 
-def candles(
+def get_candles(
         symbol,
         timeframe="15m",
-        limit=100
+        limit=120
 ):
 
     symbol = normalize(symbol)
+
+    key = f"{symbol}_{timeframe}_{limit}"
+
+
+    now = time.time()
+
+
+    if key in CACHE:
+
+        if now - CACHE[key]["time"] < CACHE_TIME:
+            return CACHE[key]["data"]
+
 
 
     data = exchange.fetch_ohlcv(
 
         symbol,
 
-        timeframe,
+        timeframe=timeframe,
 
         limit=limit
 
@@ -44,22 +58,39 @@ def candles(
 
 
     df = pd.DataFrame(
+
         data,
+
         columns=[
+
             "timestamp",
             "open",
             "high",
             "low",
             "close",
             "volume"
+
         ]
+
     )
 
 
     df["timestamp"] = pd.to_datetime(
+
         df["timestamp"],
+
         unit="ms"
+
     )
+
+
+    CACHE[key] = {
+
+        "time": now,
+
+        "data": df
+
+    }
 
 
     return df
@@ -67,15 +98,37 @@ def candles(
 
 
 
-def market_snapshot(
+def get_price(symbol):
+
+    symbol = normalize(symbol)
+
+
+    ticker = exchange.fetch_ticker(
+        symbol
+    )
+
+
+    return float(
+        ticker["last"]
+    )
+
+
+
+
+def get_market_data(
         symbol,
         timeframe="15m"
 ):
 
-    df = candles(
+
+    df = get_candles(
+
         symbol,
+
         timeframe,
-        100
+
+        120
+
     )
 
 
@@ -86,24 +139,27 @@ def market_snapshot(
 
         "symbol": normalize(symbol),
 
-        "price": round(
-            float(last.close),
-            4
-        ),
+        "price": float(last.close),
 
         "candles": [
 
             {
 
-            "open":float(x.open),
-            "high":float(x.high),
-            "low":float(x.low),
-            "close":float(x.close),
-            "volume":float(x.volume)
+                "time": str(row.timestamp),
+
+                "open": float(row.open),
+
+                "high": float(row.high),
+
+                "low": float(row.low),
+
+                "close": float(row.close),
+
+                "volume": float(row.volume)
 
             }
 
-            for _,x in df.tail(20).iterrows()
+            for _, row in df.tail(50).iterrows()
 
         ]
 

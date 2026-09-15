@@ -1,48 +1,173 @@
 import mplfinance as mpf
-from pathlib import Path
 import pandas as pd
+from pathlib import Path
 
 
-def create_chart(df, symbol, timeframe="15m"):
-    df = df.copy()
+def render_chart(
+        df,
+        symbol,
+        timeframe="15m",
+        signal=None
+):
 
-    if "timestamp" in df.columns:
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
+    data = df.copy()
 
-    elif "time" in df.columns:
-        df["timestamp"] = pd.to_datetime(df["time"])
 
-    df = df.set_index("timestamp")
+    if "timestamp" in data.columns:
 
-    folder = Path("charts")
-    folder.mkdir(exist_ok=True)
+        data["timestamp"] = pd.to_datetime(
+            data["timestamp"]
+        )
 
-    file = folder / f"{symbol.replace('/','_')}_{timeframe}.png"
+        data = data.set_index(
+            "timestamp"
+        )
 
-    style = mpf.make_mpf_style(
-        base_mpf_style="charles"
+
+    data = data.rename(
+        columns={
+            "open":"Open",
+            "high":"High",
+            "low":"Low",
+            "close":"Close",
+            "volume":"Volume"
+        }
     )
 
-    add = [
+
+    # EMA
+
+    data["EMA20"] = (
+        data["Close"]
+        .ewm(span=20)
+        .mean()
+    )
+
+
+    data["EMA50"] = (
+        data["Close"]
+        .ewm(span=50)
+        .mean()
+    )
+
+
+    addplots = [
+
         mpf.make_addplot(
-            df["EMA20"],
+            data["EMA20"],
             color="blue"
         ),
+
         mpf.make_addplot(
-            df["EMA50"],
+            data["EMA50"],
             color="orange"
         )
+
     ]
 
-    mpf.plot(
-        df,
-        type="candle",
-        volume=True,
-        addplot=add,
-        style=style,
-        title=f"{symbol} {timeframe}",
-        savefig=str(file),
-        figsize=(12,7)
+
+    # уровни AI
+
+    if signal:
+
+        if "entry" in signal:
+
+            entry = float(
+                signal["entry"]
+            )
+
+            data["ENTRY"] = entry
+
+
+            addplots.append(
+
+                mpf.make_addplot(
+
+                    data["ENTRY"],
+
+                    color="green",
+
+                    linestyle="--"
+
+                )
+
+            )
+
+
+        if "stop" in signal:
+
+            stop = float(
+                signal["stop"]
+            )
+
+            data["STOP"] = stop
+
+
+            addplots.append(
+
+                mpf.make_addplot(
+
+                    data["STOP"],
+
+                    color="red",
+
+                    linestyle="--"
+
+                )
+
+            )
+
+
+
+    folder = Path("charts")
+
+    folder.mkdir(
+        exist_ok=True
     )
 
-    return str(file)
+
+    filename = (
+
+        symbol.replace("/","_")
+
+        +
+
+        "_"
+
+        +
+
+        timeframe
+
+        +
+
+        ".png"
+
+    )
+
+
+    path = folder / filename
+
+
+
+    mpf.plot(
+
+        data.tail(100),
+
+        type="candle",
+
+        style="charles",
+
+        volume=True,
+
+        addplot=addplots,
+
+        title=f"{symbol} {timeframe}",
+
+        figsize=(14,8),
+
+        savefig=str(path)
+
+    )
+
+
+    return str(path)

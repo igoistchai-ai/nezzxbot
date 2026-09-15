@@ -17,7 +17,7 @@ class Settings:
 
     openai_model: str = os.getenv(
         "OPENAI_MODEL",
-        "gpt-6-astra"
+        "gpt-5.6-luna"
     )
 
     openai_base_url: str = os.getenv(
@@ -25,31 +25,20 @@ class Settings:
         "https://riskradarai.ru/v1"
     )
 
-
     exchange: str = os.getenv(
         "EXCHANGE",
         "okx"
     )
-
 
     market_type: str = os.getenv(
         "MARKET_TYPE",
         "spot"
     )
 
-
     candle_limit: int = int(
         os.getenv(
             "CANDLE_LIMIT",
             "500"
-        )
-    )
-
-
-    cache_seconds: int = int(
-        os.getenv(
-            "CACHE_SECONDS",
-            "15"
         )
     )
 
@@ -60,25 +49,22 @@ settings = Settings()
 
 def validate_settings():
 
-    errors = []
-
+    missing = []
 
     if not settings.telegram_token:
-        errors.append(
+        missing.append(
             "TELEGRAM_BOT_TOKEN"
         )
 
-
     if not settings.openai_key:
-        errors.append(
+        missing.append(
             "OPENAI_API_KEY"
         )
 
 
-    if errors:
-
+    if missing:
         raise RuntimeError(
-            "Нет переменных: "
+            "Отсутствуют: "
             +
-            ", ".join(errors)
+            ", ".join(missing)
         )

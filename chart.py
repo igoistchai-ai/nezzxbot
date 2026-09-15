@@ -2,107 +2,128 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 from pathlib import Path
-import pandas as pd
 
 
 
 def create_chart(
+
         df,
+
         symbol,
+
         timeframe="15m"
+
 ):
+
 
     df = df.copy()
 
 
-    # исправляем дату
+
+    # если timestamp уже дата
+
     if "timestamp" in df.columns:
 
-        if pd.api.types.is_numeric_dtype(
-            df["timestamp"]
+
+        if not hasattr(
+
+            df["timestamp"].iloc[0],
+
+            "strftime"
+
         ):
 
-            df["timestamp"] = pd.to_datetime(
-                df["timestamp"],
-                unit="ms"
-            )
+            df["timestamp"] = (
 
-        else:
-
-            df["timestamp"] = pd.to_datetime(
                 df["timestamp"]
+
+                .astype("int64")
+
             )
 
 
-    elif "time" in df.columns:
+            df["timestamp"] = (
 
-        df["timestamp"] = pd.to_datetime(
-            df["time"]
-        )
+                df["timestamp"]
+
+                .apply(
+
+                    lambda x:
+
+                    pd.to_datetime(
+
+                        x,
+
+                        unit="ms"
+
+                    )
+
+                )
+
+            )
 
 
-    # индикаторы
 
     df["EMA20"] = (
+
         df["close"]
+
         .ewm(span=20)
+
         .mean()
+
     )
+
 
     df["EMA50"] = (
+
         df["close"]
+
         .ewm(span=50)
+
         .mean()
+
     )
 
-    df["EMA200"] = (
-        df["close"]
-        .ewm(span=200)
-        .mean()
-    )
 
 
     folder = Path("charts")
 
     folder.mkdir(
+
         exist_ok=True
+
     )
 
 
-    filename = (
+
+    path = folder / (
+
         symbol.replace("/", "_")
+
         +
+
         "_"
+
         +
+
         timeframe
+
         +
+
         ".png"
-    )
-
-
-    path = folder / filename
-
-
-
-    fig, (ax, ax_volume) = plt.subplots(
-
-        2,
-
-        1,
-
-        figsize=(14,8),
-
-        gridspec_kw={
-            "height_ratios":[3,1]
-        },
-
-        sharex=True
 
     )
 
 
 
-    # свечи
+    fig, ax = plt.subplots(
+
+        figsize=(14,7)
+
+    )
+
+
 
     for _, row in df.iterrows():
 
@@ -121,13 +142,19 @@ def create_chart(
         ax.plot(
 
             [
+
                 row.timestamp,
+
                 row.timestamp
+
             ],
 
             [
+
                 row.low,
+
                 row.high
+
             ],
 
             color=color
@@ -139,7 +166,7 @@ def create_chart(
 
             row.timestamp,
 
-            row.close - row.open,
+            row.close-row.open,
 
             bottom=row.open,
 
@@ -150,8 +177,6 @@ def create_chart(
         )
 
 
-
-    # EMA
 
     ax.plot(
 
@@ -175,17 +200,6 @@ def create_chart(
     )
 
 
-    ax.plot(
-
-        df.timestamp,
-
-        df.EMA200,
-
-        label="EMA200"
-
-    )
-
-
 
     ax.set_title(
 
@@ -198,28 +212,20 @@ def create_chart(
 
 
 
-    # объём
-
-    ax_volume.bar(
-
-        df.timestamp,
-
-        df.volume
-
-    )
-
-
-
     ax.xaxis.set_major_formatter(
 
         mdates.DateFormatter(
+
             "%H:%M"
+
         )
 
     )
 
 
+
     plt.tight_layout()
+
 
 
     plt.savefig(
@@ -232,6 +238,7 @@ def create_chart(
 
 
     plt.close()
+
 
 
     return str(path)

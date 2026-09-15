@@ -1,17 +1,48 @@
 import asyncio
 
-from bot import main
+
+from bot import main, bot
+
+
 from health_server import start_health
 
 
+from price_monitor import monitor_prices
+
+
+
+
+
 async def start():
-    # Render provides the HTTP port through the PORT environment variable.
-    # The health server uses that same port so UptimeRobot can ping /health.
+
+
+    # запуск страницы для Render/UptimeRobot
+
     await start_health()
 
-    # Start Telegram polling in the same process.
+
+
+    # запуск мониторинга цен
+
+    asyncio.create_task(
+
+        monitor_prices(bot)
+
+    )
+
+
+
+    # запуск Telegram
+
     await main()
 
 
+
+
+
 if __name__ == "__main__":
-    asyncio.run(start())
+
+
+    asyncio.run(
+        start()
+    )

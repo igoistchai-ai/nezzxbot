@@ -1,30 +1,8 @@
 import json
-from pathlib import Path
 
 from openai import OpenAI
 
 from config import settings
-
-
-
-PROMPT_FILE = Path(
-    __file__
-).parent / "master_prompt.txt"
-
-
-
-if PROMPT_FILE.exists():
-
-    SYSTEM_PROMPT = PROMPT_FILE.read_text(
-        encoding="utf-8"
-    )
-
-else:
-
-    SYSTEM_PROMPT = """
-Ты профессиональный криптоаналитик.
-Анализируй только переданные данные.
-"""
 
 
 
@@ -38,54 +16,43 @@ client = OpenAI(
 
 
 
-def analyze_market(data):
+SYSTEM = """
 
+Ты быстрый криптоаналитик.
 
-    prompt = f"""
+Делай технический анализ.
 
-Проанализируй рынок:
+Не пиши длинно.
 
-
-{json.dumps(
-    data,
-    ensure_ascii=False,
-    indent=2
-)}
-
-
-
-Ответ:
+Формат:
 
 Монета:
-
 Цена:
 
-Тренд:
-
 Сигнал:
-LONG / SHORT / WAIT
-
+LONG/SHORT/WAIT
 
 Уверенность:
 
-Точка входа:
+Вход:
 
 Stop Loss:
 
 Take Profit:
 
+Причина:
 
-Причины:
+Риск:
 
-Риски:
-
-
-Не гарантируй прибыль.
 """
 
 
 
+def analyze_market(data):
+
+
     try:
+
 
         response = client.chat.completions.create(
 
@@ -95,13 +62,17 @@ Take Profit:
             messages=[
 
                 {
-                    "role":"system",
-                    "content":SYSTEM_PROMPT
+                "role":"system",
+                "content":SYSTEM
                 },
 
+
                 {
-                    "role":"user",
-                    "content":prompt
+                "role":"user",
+                "content":json.dumps(
+                    data,
+                    ensure_ascii=False
+                )
                 }
 
             ]
@@ -109,79 +80,50 @@ Take Profit:
         )
 
 
-        return response.choices[0].message.content
+        return (
+            response
+            .choices[0]
+            .message
+            .content
+        )
 
 
 
     except Exception as e:
 
-        return (
-            "Ошибка AI:\n"
-            +
-            str(e)
-        )
+        return f"AI ошибка: {e}"
 
 
 
 
-def chat_ai(
-        message,
-        context=None
-):
-
-    context = context or {}
+def chat_ai(message, context=None):
 
 
-    prompt = f"""
+    response = client.chat.completions.create(
 
-Контекст:
-
-{json.dumps(
-    context,
-    ensure_ascii=False
-)}
+        model=settings.openai_model,
 
 
-Вопрос:
+        messages=[
 
-{message}
+            {
+            "role":"system",
+            "content":SYSTEM
+            },
 
-"""
+            {
+            "role":"user",
+            "content":message
+            }
 
+        ]
 
-
-    try:
-
-        response = client.chat.completions.create(
-
-            model=settings.openai_model,
-
-
-            messages=[
-
-                {
-                    "role":"system",
-                    "content":SYSTEM_PROMPT
-                },
-
-                {
-                    "role":"user",
-                    "content":prompt
-                }
-
-            ]
-
-        )
+    )
 
 
-        return response.choices[0].message.content
-
-
-
-    except Exception as e:
-
-        return (
-            "Ошибка Chat AI:\n"
-            +
-            str(e)
-        )
+    return (
+        response
+        .choices[0]
+        .message
+        .content
+    )

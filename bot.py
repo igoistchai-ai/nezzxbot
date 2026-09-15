@@ -40,13 +40,10 @@ dp = Dispatcher()
 
 
 coins = [
-
     "BTC/USDT",
     "ETH/USDT",
     "LTC/USDT",
-    "SOL/USDT",
-    "DOGE/USDT"
-
+    "SOL/USDT"
 ]
 
 
@@ -54,7 +51,7 @@ users = {}
 
 
 
-def user_data(uid):
+def get_user(uid):
 
     if uid not in users:
 
@@ -62,9 +59,11 @@ def user_data(uid):
 
             "symbol":"BTC/USDT",
 
+            "alert":False,
+
             "chat":False,
 
-            "alert":False
+            "direction":"above"
 
         }
 
@@ -75,14 +74,14 @@ def user_data(uid):
 
 
 
-def main_menu():
+def menu():
 
     kb = InlineKeyboardBuilder()
 
 
     kb.button(
-        text="🚀 Начать анализ",
-        callback_data="analysis"
+        text="⚡ Быстрый анализ",
+        callback_data="analyze"
     )
 
 
@@ -105,7 +104,7 @@ def main_menu():
 
 
     kb.button(
-        text="💬 Chat AI",
+        text="💬 Chat",
         callback_data="chat"
     )
 
@@ -118,18 +117,19 @@ def main_menu():
 
 
 
-def coins_menu():
+
+def coin_menu():
 
     kb=InlineKeyboardBuilder()
 
 
-    for coin in coins:
+    for c in coins:
 
         kb.button(
 
-            text=coin,
+            text=c,
 
-            callback_data=f"coin_{coin}"
+            callback_data=f"coin:{c}"
 
         )
 
@@ -145,17 +145,16 @@ def coins_menu():
 @dp.message(CommandStart())
 async def start(message:Message):
 
-
-    user_data(
+    get_user(
         message.from_user.id
     )
 
 
     await message.answer(
 
-        "NEZZX GRAFIK AI\n\nВыберите действие:",
+        "NEZZX AI\nВыберите действие",
 
-        reply_markup=main_menu()
+        reply_markup=menu()
 
     )
 
@@ -169,12 +168,12 @@ async def start(message:Message):
 
 
 @dp.callback_query(
-    F.data=="analysis"
+    F.data=="analyze"
 )
-async def analysis(call:CallbackQuery):
+async def analyze(call:CallbackQuery):
 
 
-    user=user_data(
+    user=get_user(
         call.from_user.id
     )
 
@@ -183,15 +182,14 @@ async def analysis(call:CallbackQuery):
 
 
     await call.message.answer(
-        "⚡ Сканирую рынок..."
+        "⚡ Анализ..."
     )
-
 
 
     try:
 
 
-        df=await asyncio.to_thread(
+        df = await asyncio.to_thread(
 
             get_candles,
 
@@ -201,11 +199,11 @@ async def analysis(call:CallbackQuery):
 
 
 
-        technical=scan(df)
+        technical = scan(df)
 
 
 
-        market=get_market_snapshot(
+        market = get_market_snapshot(
 
             symbol
 
@@ -213,7 +211,7 @@ async def analysis(call:CallbackQuery):
 
 
 
-        result=await asyncio.to_thread(
+        result = await asyncio.to_thread(
 
             analyze_market,
 
@@ -225,13 +223,15 @@ async def analysis(call:CallbackQuery):
 
 
 
-        image=await asyncio.to_thread(
+        image = await asyncio.to_thread(
 
             create_chart,
 
             df,
 
-            symbol
+            symbol,
+
+            technical
 
         )
 
@@ -241,7 +241,7 @@ async def analysis(call:CallbackQuery):
 
             FSInputFile(image),
 
-            caption="📈 График анализа"
+            caption="📈 Карта сделки"
 
         )
 
@@ -259,7 +259,7 @@ async def analysis(call:CallbackQuery):
 
         await call.message.answer(
 
-            f"Ошибка анализа:\n{e}"
+            f"Ошибка:\n{e}"
 
         )
 
@@ -268,21 +268,21 @@ async def analysis(call:CallbackQuery):
 
 
 # =====================
-# Монеты
+# Монета
 # =====================
 
 
 @dp.callback_query(
     F.data=="coins"
 )
-async def show_coins(call:CallbackQuery):
+async def coins_menu(call:CallbackQuery):
 
 
     await call.message.answer(
 
         "Выберите монету:",
 
-        reply_markup=coins_menu()
+        reply_markup=coin_menu()
 
     )
 
@@ -291,26 +291,23 @@ async def show_coins(call:CallbackQuery):
 
 
 @dp.callback_query(
-    F.data.startswith("coin_")
+    F.data.startswith("coin:")
 )
-async def select_coin(call:CallbackQuery):
+async def choose_coin(call:CallbackQuery):
 
 
-    symbol=call.data.replace(
-        "coin_",
-        ""
-    )
+    coin=call.data.split(":")[1]
 
 
-    user_data(
+    get_user(
         call.from_user.id
-    )["symbol"]=symbol
+    )["symbol"]=coin
 
 
 
     await call.message.answer(
 
-        f"🪙 Выбрано: {symbol}"
+        f"Выбрано: {coin}"
 
     )
 
@@ -329,7 +326,7 @@ async def select_coin(call:CallbackQuery):
 async def chart(call:CallbackQuery):
 
 
-    user=user_data(
+    user=get_user(
         call.from_user.id
     )
 
@@ -364,66 +361,6 @@ async def chart(call:CallbackQuery):
 
 
 
-@dp.message(
-    F.text.lower().startswith("!график")
-)
-async def command_chart(message:Message):
-
-
-    args=message.text.split()
-
-
-    if len(args)<2:
-
-        await message.answer(
-            "Пример: !график BTC"
-        )
-
-        return
-
-
-
-    symbol=args[1].upper()
-
-
-
-    if "/" not in symbol:
-
-        symbol += "/USDT"
-
-
-
-    df=await asyncio.to_thread(
-
-        get_candles,
-
-        symbol
-
-    )
-
-
-
-    image=await asyncio.to_thread(
-
-        create_chart,
-
-        df,
-
-        symbol
-
-    )
-
-
-    await message.answer_photo(
-
-        FSInputFile(image)
-
-    )
-
-
-
-
-
 # =====================
 # Цена
 # =====================
@@ -432,17 +369,19 @@ async def command_chart(message:Message):
 @dp.callback_query(
     F.data=="alert"
 )
-async def price_alert(call:CallbackQuery):
+async def alert(call:CallbackQuery):
 
 
-    user_data(
+    get_user(
         call.from_user.id
     )["alert"]=True
 
 
+
     await call.message.answer(
 
-        "Введите цену уведомления"
+        "Введите цену уведомления\n\n"
+        "Пример:\n100000"
 
     )
 
@@ -459,7 +398,7 @@ async def price_alert(call:CallbackQuery):
 async def text(message:Message):
 
 
-    user=user_data(
+    user=get_user(
         message.from_user.id
     )
 
@@ -473,7 +412,9 @@ async def text(message:Message):
 
             user["symbol"],
 
-            float(message.text)
+            float(message.text),
+
+            user["direction"]
 
         )
 
@@ -481,11 +422,13 @@ async def text(message:Message):
         user["alert"]=False
 
 
+
         await message.answer(
 
-            "🔔 Уведомление установлено"
+            "🔔 Уведомление создано"
 
         )
+
 
         return
 
@@ -516,10 +459,10 @@ async def text(message:Message):
 @dp.callback_query(
     F.data=="chat"
 )
-async def enable_chat(call:CallbackQuery):
+async def chat(call:CallbackQuery):
 
 
-    user_data(
+    get_user(
         call.from_user.id
     )["chat"]=True
 
@@ -535,10 +478,69 @@ async def enable_chat(call:CallbackQuery):
 
 
 
+@dp.message(
+    F.text.lower().startswith("!график")
+)
+async def graphic(message:Message):
+
+
+    args=message.text.split()
+
+
+    if len(args)<2:
+
+        await message.answer(
+            "Пример: !график BTC"
+        )
+
+        return
+
+
+
+    symbol=args[1].upper()
+
+
+    if "/" not in symbol:
+
+        symbol+="/USDT"
+
+
+
+    df=await asyncio.to_thread(
+
+        get_candles,
+
+        symbol
+
+    )
+
+
+    image=await asyncio.to_thread(
+
+        create_chart,
+
+        df,
+
+        symbol
+
+    )
+
+
+    await message.answer_photo(
+
+        FSInputFile(image)
+
+    )
+
+
+
+
+
 async def main():
 
     validate()
 
+
     await dp.start_polling(
         bot
-        )
+)

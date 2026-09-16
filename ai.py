@@ -7,64 +7,21 @@ client = OpenAI(
 )
 
 
-async def ai_analyze(
-    market_data
-):
+async def ai_analyze(data):
 
-    try:
+    response = client.chat.completions.create(
+        model="gpt-5.4-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": "Ты профессиональный криптоаналитик. Кратко анализируй рынок."
+            },
+            {
+                "role": "user",
+                "content": str(data)
+            }
+        ],
+        temperature=0.2
+    )
 
-        prompt = f"""
-Ты быстрый крипто-аналитик.
-
-Монета: {market_data.get('symbol')}
-
-Направление:
-{market_data.get('direction')}
-
-Цена:
-{market_data.get('entry')}
-
-TP:
-{market_data.get('tp')}
-
-SL:
-{market_data.get('sl')}
-
-Свечи:
-последние данные получены.
-
-Ответь коротко:
-
-1. Ситуация рынка
-2. Входить или ждать
-3. Риск
-
-Не пиши длинный текст.
-"""
-
-
-        response = client.chat.completions.create(
-
-            model="gpt-5-mini",
-
-            messages=[
-                {
-                    "role":"user",
-                    "content":prompt
-                }
-            ],
-
-            max_tokens=150
-
-        )
-
-
-        return response.choices[0].message.content
-
-
-    except Exception as e:
-
-        return (
-            "AI ошибка: "
-            + str(e)
-        )
+    return response.choices[0].message.content

@@ -6,9 +6,15 @@ def calculate_rsi(series, period=14):
 
     delta = series.diff()
 
-    gain = delta.clip(lower=0)
 
-    loss = -delta.clip(upper=0)
+    gain = delta.clip(
+        lower=0
+    )
+
+
+    loss = -delta.clip(
+        upper=0
+    )
 
 
     avg_gain = gain.rolling(
@@ -24,105 +30,203 @@ def calculate_rsi(series, period=14):
     rs = avg_gain / avg_loss
 
 
-    return 100 - (
-        100/(1+rs)
+    rsi = 100 - (
+        100 / (1 + rs)
     )
 
 
+    return rsi
 
 
 
-def scan(df):
 
 
-    df=df.copy()
+def prepare_indicators(df):
+
+    df = df.copy()
 
 
     df["EMA20"] = (
-        df.close
-        .ewm(span=20)
+        df["close"]
+        .ewm(
+            span=20,
+            adjust=False
+        )
         .mean()
     )
 
 
     df["EMA50"] = (
-        df.close
-        .ewm(span=50)
+        df["close"]
+        .ewm(
+            span=50,
+            adjust=False
+        )
         .mean()
     )
 
 
     df["RSI"] = calculate_rsi(
-        df.close
+        df["close"]
     )
 
 
-    last=df.iloc[-1]
+    return df
 
 
-    price=float(
-        last.close
+
+
+
+def scan(df, symbol=""):
+
+    df = prepare_indicators(
+        df
     )
 
 
-    if last.EMA20 > last.EMA50:
+    last = df.iloc[-1]
 
-        signal="LONG"
 
-        entry=price
+    price = float(
+        last["close"]
+    )
 
-        tp=price*1.02
 
-        sl=price*0.99
+    ema20 = float(
+        last["EMA20"]
+    )
+
+
+    ema50 = float(
+        last["EMA50"]
+    )
+
+
+    rsi = float(
+        last["RSI"]
+    )
+
+
+
+    # Логика сигнала
+
+
+    if (
+        ema20 > ema50
+        and rsi < 70
+    ):
+
+        signal = "LONG"
+
+
+        entry = price
+
+
+        tp1 = price * 1.01
+
+
+        tp2 = price * 1.02
+
+
+        sl = price * 0.985
+
+
+
+    elif (
+        ema20 < ema50
+        and rsi > 30
+    ):
+
+        signal = "SHORT"
+
+
+        entry = price
+
+
+        tp1 = price * 0.99
+
+
+        tp2 = price * 0.98
+
+
+        sl = price * 1.015
+
 
 
     else:
 
-        signal="SHORT"
 
-        entry=price
+        signal = "WAIT"
 
-        tp=price*0.98
 
-        sl=price*1.01
+        entry = price
+
+
+        tp1 = price
+
+
+        tp2 = price
+
+
+        sl = price
+
 
 
 
 
     return {
 
-
-        "price":round(price,6),
-
-        "signal":signal,
-
-        "entry":round(entry,6),
-
-        "tp":round(tp,6),
-
-        "sl":round(sl,6),
+        "symbol": symbol,
 
 
-        "rsi":round(
-            float(last.RSI),
+        "price": round(
+            price,
+            8
+        ),
+
+
+        "signal": signal,
+
+
+        "entry": round(
+            entry,
+            8
+        ),
+
+
+        "tp1": round(
+            tp1,
+            8
+        ),
+
+
+        "tp2": round(
+            tp2,
+            8
+        ),
+
+
+        "sl": round(
+            sl,
+            8
+        ),
+
+
+        "rsi": round(
+            rsi,
             2
         ),
 
 
-        "ema20":round(
-            float(last.EMA20),
-            6
+        "ema20": round(
+            ema20,
+            8
         ),
 
 
-        "ema50":round(
-            float(last.EMA50),
-            6
-        ),
-
-
-        "volume":float(
-            last.volume
+        "ema50": round(
+            ema50,
+            8
         )
 
-    }
+        }

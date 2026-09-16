@@ -6,6 +6,7 @@ from config import (
 )
 
 
+
 client = OpenAI(
     api_key=OPENAI_API_KEY
 )
@@ -15,54 +16,62 @@ client = OpenAI(
 SYSTEM = """
 Ты криптоаналитик.
 
-Данные уже рассчитаны системой.
+Данные уже рассчитаны.
 
-Формат ответа:
+Отвечай быстро.
 
-🪙 Монета:
-💰 Цена:
+Формат:
 
-📊 Сигнал:
-LONG / SHORT / WAIT
+Монета:
+Цена:
 
-🎯 Вход:
-🛑 SL:
-✅ TP:
+Сигнал:
+LONG/SHORT/WAIT
 
-Причины:
-- тренд
-- индикаторы
-- объём
+Вход:
+SL:
+TP1:
+TP2:
 
-Не обещай прибыль.
+Причина:
+3 коротких пункта.
+
+Не гарантируй прибыль.
 """
 
 
 
 def analyze_market(data):
 
-    response = client.chat.completions.create(
+    try:
 
-        model=OPENAI_MODEL,
+        response = client.chat.completions.create(
 
-        messages=[
+            model=OPENAI_MODEL,
 
-            {
-                "role": "system",
-                "content": SYSTEM
-            },
+            messages=[
 
-            {
-                "role": "user",
-                "content": str(data)
-            }
+                {
+                    "role":"system",
+                    "content":SYSTEM
+                },
 
-        ]
+                {
+                    "role":"user",
+                    "content":str(data)
+                }
 
-    )
+            ]
+
+        )
 
 
-    return response.choices[0].message.content
+        return response.choices[0].message.content
+
+
+    except Exception as e:
+
+        return f"AI ошибка: {e}"
 
 
 

@@ -1,14 +1,15 @@
 import time
 
 import ccxt
-
 import pandas as pd
 
 
 
 exchange = ccxt.okx({
 
-    "enableRateLimit": True
+    "enableRateLimit": True,
+
+    "timeout": 5000
 
 })
 
@@ -22,10 +23,10 @@ CACHE_TIME = 3
 
 
 
-def normalize(symbol):
+def normalize_symbol(symbol):
 
 
-    symbol=symbol.upper()
+    symbol = symbol.upper()
 
 
     if "/" not in symbol:
@@ -50,85 +51,137 @@ def get_candles(
 ):
 
 
-    symbol=normalize(symbol)
+    symbol = normalize_symbol(
+        symbol
+    )
 
 
-    key=f"{symbol}_{timeframe}"
+    key = (
+
+        symbol,
+
+        timeframe,
+
+        limit
+
+    )
+
+
+    now = time.time()
 
 
 
-    now=time.time()
-
-
+    # быстрый кеш
 
     if key in CACHE:
 
 
-        if now-CACHE[key]["time"] < CACHE_TIME:
+        if now - CACHE[key]["time"] < CACHE_TIME:
 
             return CACHE[key]["data"]
 
 
 
 
-    data=exchange.fetch_ohlcv(
 
-        symbol,
+    try:
 
-        timeframe,
 
-        limit=limit
+        data = exchange.fetch_ohlcv(
+
+            symbol,
+
+            timeframe=timeframe,
+
+            limit=limit
+
+        )
+
+
+
+        df = pd.DataFrame(
+
+            data,
+
+            columns=[
+
+                "timestamp",
+
+                "open",
+
+                "high",
+
+                "low",
+
+                "close",
+
+                "volume"
+
+            ]
+
+        )
+
+
+
+        df["timestamp"] = pd.to_datetime(
+
+            df["timestamp"],
+
+            unit="ms"
+
+        )
+
+
+
+        CACHE[key] = {
+
+            "time": now,
+
+            "data": df
+
+        }
+
+
+
+        return df
+
+
+
+    except Exception as e:
+
+
+        if key in CACHE:
+
+            return CACHE[key]["data"]
+
+
+        raise e
+
+
+
+
+
+
+def get_price(symbol):
+
+
+    symbol = normalize_symbol(
+        symbol
+    )
+
+
+    ticker = exchange.fetch_ticker(
+
+        symbol
 
     )
 
 
+    return float(
 
-    df=pd.DataFrame(
-
-        data,
-
-        columns=[
-
-            "timestamp",
-
-            "open",
-
-            "high",
-
-            "low",
-
-            "close",
-
-            "volume"
-
-        ]
+        ticker["last"]
 
     )
-
-
-
-    df["timestamp"]=pd.to_datetime(
-
-        df["timestamp"],
-
-        unit="ms"
-
-    )
-
-
-
-    CACHE[key]={
-
-        "time":now,
-
-        "data":df
-
-    }
-
-
-
-    return df
-
 
 
 
@@ -137,25 +190,32 @@ def get_candles(
 def get_market_snapshot(symbol):
 
 
-    df=get_candles(
+    df = get_candles(
 
         symbol
 
     )
 
 
-
-    last=df.iloc[-1]
+    last = df.iloc[-1]
 
 
 
     return {
 
 
-        "symbol":normalize(symbol),
+        "symbol": normalize_symbol(
+
+            symbol
+
+        ),
 
 
-        "price":float(last.close),
+        "price": float(
+
+            last.close
+
+        ),
 
 
         "candles":[
@@ -176,7 +236,7 @@ def get_market_snapshot(symbol):
             }
 
 
-            for _,row in df.tail(50).iterrows()
+            for _, row in df.tail(30).iterrows()
 
         ]
 

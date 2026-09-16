@@ -23,9 +23,7 @@ def add_alert(
 
 
 
-def remove_alert(
-        user_id
-):
+def remove_alert(user_id):
 
     alerts.pop(
         str(user_id),
@@ -46,19 +44,14 @@ def get_alerts():
 
 def check_price(prices):
 
-
     triggered = []
-
 
 
     for user_id, alert in list(
         alerts.items()
     ):
 
-
-
         symbol = alert["symbol"]
-
 
 
         if symbol not in prices:
@@ -67,56 +60,46 @@ def check_price(prices):
 
 
 
-        current = float(
-
+        current_price = float(
             prices[symbol]
-
         )
 
 
-        target = float(
-
+        target_price = float(
             alert["price"]
-
         )
-
 
 
         direction = alert.get(
-
             "direction",
-
             "above"
-
         )
 
 
 
-        hit = False
+        reached = False
 
 
 
         if direction == "above":
 
+            if current_price >= target_price:
 
-            if current >= target:
-
-                hit = True
+                reached = True
 
 
 
         elif direction == "below":
 
+            if current_price <= target_price:
 
-            if current <= target:
-
-                hit = True
-
+                reached = True
 
 
 
 
-        if hit:
+
+        if reached:
 
 
             triggered.append({
@@ -125,7 +108,7 @@ def check_price(prices):
 
                 "symbol": symbol,
 
-                "price": current
+                "price": current_price
 
             })
 

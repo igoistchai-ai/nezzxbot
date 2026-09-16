@@ -1,6 +1,6 @@
 import mplfinance as mpf
-import pandas as pd
 from pathlib import Path
+import pandas as pd
 
 
 
@@ -19,23 +19,18 @@ def create_chart(
     )
 
 
-    data = data.tail(100)
+    data = data.tail(80)
 
 
     data = data.rename(
         columns={
 
-            "timestamp":"Date",
-
-            "open":"Open",
-
-            "high":"High",
-
-            "low":"Low",
-
-            "close":"Close",
-
-            "volume":"Volume"
+            "timestamp": "Date",
+            "open": "Open",
+            "high": "High",
+            "low": "Low",
+            "close": "Close",
+            "volume": "Volume"
 
         }
     )
@@ -46,117 +41,124 @@ def create_chart(
     )
 
 
+
     # EMA
 
     data["EMA20"] = (
         data["Close"]
-        .ewm(span=20)
+        .ewm(
+            span=20,
+            adjust=False
+        )
         .mean()
     )
 
 
     data["EMA50"] = (
         data["Close"]
-        .ewm(span=50)
+        .ewm(
+            span=50,
+            adjust=False
+        )
         .mean()
     )
 
 
 
-    addplots = [
+    plots = [
 
         mpf.make_addplot(
-
-            data["EMA20"],
-
-            color="blue"
-
+            data["EMA20"]
         ),
 
-
         mpf.make_addplot(
-
-            data["EMA50"],
-
-            color="orange"
-
+            data["EMA50"]
         )
 
     ]
 
 
 
-    hlines = []
+    levels = []
+
+
+    colors = []
 
 
 
     if analysis:
 
 
-        # вход
+        if analysis.get("entry"):
 
-        if "entry" in analysis:
+            levels.append(
+                analysis["entry"]
+            )
 
-
-            hlines.append(
-
-                float(
-                    analysis["entry"]
-                )
-
+            colors.append(
+                "green"
             )
 
 
 
-        # стоп
+        if analysis.get("tp1"):
 
-        if "sl" in analysis:
+            levels.append(
+                analysis["tp1"]
+            )
 
-
-            hlines.append(
-
-                float(
-                    analysis["sl"]
-                )
-
+            colors.append(
+                "green"
             )
 
 
 
-        # тейк
+        if analysis.get("tp2"):
 
-        if "tp" in analysis:
+            levels.append(
+                analysis["tp2"]
+            )
 
-
-            hlines.append(
-
-                float(
-                    analysis["tp"]
-                )
-
+            colors.append(
+                "green"
             )
 
 
 
+        if analysis.get("sl"):
+
+            levels.append(
+                analysis["sl"]
+            )
+
+            colors.append(
+                "red"
+            )
 
 
-    folder = Path(
+
+    Path(
         "charts"
-    )
-
-    folder.mkdir(
+    ).mkdir(
         exist_ok=True
     )
 
 
 
-    file = folder / (
+    file = (
 
-        symbol.replace("/","_")
+        "charts/"
 
         +
 
-        "_chart.png"
+        symbol.replace(
+            "/",
+            "_"
+        )
+
+        +
+
+        ".png"
 
     )
 
@@ -173,26 +175,20 @@ def create_chart(
         volume=True,
 
 
-        addplot=addplots,
+        addplot=plots,
 
 
         hlines={
 
-            "hlines":hlines,
+            "hlines": levels,
 
-            "colors":[
+            "colors": colors,
 
-                "green",
+            "linestyle": "--",
 
-                "red",
+            "linewidths": 1.2
 
-                "green"
-
-            ],
-
-            "linestyle":"--"
-
-        } if hlines else None,
+        } if levels else None,
 
 
         title=f"{symbol} {timeframe}",
@@ -203,14 +199,15 @@ def create_chart(
 
         savefig={
 
-            "fname":str(file),
+            "fname": file,
 
-            "dpi":120
+            "dpi":120,
+
+            "bbox_inches":"tight"
 
         }
 
     )
 
 
-
-    return str(file)
+    return file

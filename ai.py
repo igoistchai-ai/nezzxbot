@@ -1,67 +1,60 @@
+import os
 from openai import OpenAI
-
-from config import (
-    OPENAI_API_KEY,
-    OPENAI_MODEL
-)
-
 
 
 client = OpenAI(
-    api_key=OPENAI_API_KEY
+    api_key=os.getenv("OPENAI_API_KEY")
 )
 
 
-
-SYSTEM = """
-Ты криптоаналитик.
-
-Данные уже рассчитаны.
-
-Отвечай быстро.
-
-Формат:
-
-Монета:
-Цена:
-
-Сигнал:
-LONG/SHORT/WAIT
-
-Вход:
-SL:
-TP1:
-TP2:
-
-Причина:
-3 коротких пункта.
-
-Не гарантируй прибыль.
-"""
-
-
-
-def analyze_market(data):
+async def ai_analyze(
+    market_data
+):
 
     try:
 
+        prompt = f"""
+Ты быстрый крипто-аналитик.
+
+Монета: {market_data.get('symbol')}
+
+Направление:
+{market_data.get('direction')}
+
+Цена:
+{market_data.get('entry')}
+
+TP:
+{market_data.get('tp')}
+
+SL:
+{market_data.get('sl')}
+
+Свечи:
+последние данные получены.
+
+Ответь коротко:
+
+1. Ситуация рынка
+2. Входить или ждать
+3. Риск
+
+Не пиши длинный текст.
+"""
+
+
         response = client.chat.completions.create(
 
-            model=OPENAI_MODEL,
+            model="gpt-5-mini",
 
             messages=[
-
-                {
-                    "role":"system",
-                    "content":SYSTEM
-                },
-
                 {
                     "role":"user",
-                    "content":str(data)
+                    "content":prompt
                 }
+            ],
 
-            ]
+            max_tokens=150
 
         )
 
@@ -71,28 +64,7 @@ def analyze_market(data):
 
     except Exception as e:
 
-        return f"AI ошибка: {e}"
-
-
-
-
-
-def chat_ai(text):
-
-    response = client.chat.completions.create(
-
-        model=OPENAI_MODEL,
-
-        messages=[
-
-            {
-                "role":"user",
-                "content":text
-            }
-
-        ]
-
-    )
-
-
-    return response.choices[0].message.content
+        return (
+            "AI ошибка: "
+            + str(e)
+        )

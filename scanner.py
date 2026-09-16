@@ -1,232 +1,125 @@
-import pandas as pd
+from market import get_candles
+
+
+def calculate_ema(values, period):
+    if len(values) < period:
+        return sum(values) / len(values)
+
+    return sum(values[-period:]) / period
 
 
 
-def calculate_rsi(series, period=14):
+async def analyze_market(symbol):
 
-    delta = series.diff()
+    candles = await get_candles(symbol, 100)
+
+    if not candles:
+        return {
+            "error": "Нет данных рынка"
+        }
 
 
-    gain = delta.clip(
-        lower=0
+    closes = [
+        c["close"]
+        for c in candles
+    ]
+
+
+    last = closes[-1]
+
+
+    ema20 = calculate_ema(
+        closes,
+        20
+    )
+
+    ema50 = calculate_ema(
+        closes,
+        50
     )
 
 
-    loss = -delta.clip(
-        upper=0
-    )
+    # направление
 
+    if last > ema20 > ema50:
 
-    avg_gain = gain.rolling(
-        period
-    ).mean()
+        direction = "LONG"
 
+        entry = last
 
-    avg_loss = loss.rolling(
-        period
-    ).mean()
-
-
-    rs = avg_gain / avg_loss
-
-
-    rsi = 100 - (
-        100 / (1 + rs)
-    )
-
-
-    return rsi
-
-
-
-
-
-def prepare_indicators(df):
-
-    df = df.copy()
-
-
-    df["EMA20"] = (
-        df["close"]
-        .ewm(
-            span=20,
-            adjust=False
+        tp = round(
+            entry * 1.015,
+            4
         )
-        .mean()
-    )
 
-
-    df["EMA50"] = (
-        df["close"]
-        .ewm(
-            span=50,
-            adjust=False
+        sl = round(
+            entry * 0.99,
+            4
         )
-        .mean()
-    )
 
 
-    df["RSI"] = calculate_rsi(
-        df["close"]
-    )
+        text = (
+            "🟢 Сигнал LONG\n"
+            f"Вход: {entry}\n"
+            f"TP: {tp}\n"
+            f"SL: {sl}"
+        )
 
 
-    return df
+    elif last < ema20 < ema50:
+
+        direction = "SHORT"
+
+        entry = last
+
+        tp = round(
+            entry * 0.985,
+            4
+        )
+
+        sl = round(
+            entry * 1.01,
+            4
+        )
 
 
-
-
-
-def scan(df, symbol=""):
-
-    df = prepare_indicators(
-        df
-    )
-
-
-    last = df.iloc[-1]
-
-
-    price = float(
-        last["close"]
-    )
-
-
-    ema20 = float(
-        last["EMA20"]
-    )
-
-
-    ema50 = float(
-        last["EMA50"]
-    )
-
-
-    rsi = float(
-        last["RSI"]
-    )
-
-
-
-    # Логика сигнала
-
-
-    if (
-        ema20 > ema50
-        and rsi < 70
-    ):
-
-        signal = "LONG"
-
-
-        entry = price
-
-
-        tp1 = price * 1.01
-
-
-        tp2 = price * 1.02
-
-
-        sl = price * 0.985
-
-
-
-    elif (
-        ema20 < ema50
-        and rsi > 30
-    ):
-
-        signal = "SHORT"
-
-
-        entry = price
-
-
-        tp1 = price * 0.99
-
-
-        tp2 = price * 0.98
-
-
-        sl = price * 1.015
-
+        text = (
+            "🔴 Сигнал SHORT\n"
+            f"Вход: {entry}\n"
+            f"TP: {tp}\n"
+            f"SL: {sl}"
+        )
 
 
     else:
 
+        direction = "WAIT"
 
-        signal = "WAIT"
-
-
-        entry = price
-
-
-        tp1 = price
+        entry = last
+        tp = None
+        sl = None
 
 
-        tp2 = price
-
-
-        sl = price
-
-
-
+        text = (
+            "⚪ Нет сильного сигнала\n"
+            f"Цена: {last}"
+        )
 
 
     return {
 
         "symbol": symbol,
 
+        "direction": direction,
 
-        "price": round(
-            price,
-            8
-        ),
+        "entry": entry,
 
+        "tp": tp,
 
-        "signal": signal,
+        "sl": sl,
 
+        "text": text,
 
-        "entry": round(
-            entry,
-            8
-        ),
+        "candles": candles
 
-
-        "tp1": round(
-            tp1,
-            8
-        ),
-
-
-        "tp2": round(
-            tp2,
-            8
-        ),
-
-
-        "sl": round(
-            sl,
-            8
-        ),
-
-
-        "rsi": round(
-            rsi,
-            2
-        ),
-
-
-        "ema20": round(
-            ema20,
-            8
-        ),
-
-
-        "ema50": round(
-            ema50,
-            8
-        )
-
-        }
+    }

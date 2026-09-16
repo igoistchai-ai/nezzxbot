@@ -7,23 +7,14 @@ from alerts import check_price
 
 
 
-
-
 SYMBOLS = [
 
     "BTC-USDT",
-
     "ETH-USDT",
-
     "LTC-USDT",
-
-    "SOL-USDT",
-
-    "DOGE-USDT"
+    "SOL-USDT"
 
 ]
-
-
 
 
 
@@ -35,38 +26,29 @@ async def monitor_prices(bot):
     )
 
 
-
     while True:
-
 
         try:
 
-
             async with websockets.connect(
-
                 url,
-
                 ping_interval=20,
-
                 ping_timeout=20
-
             ) as ws:
 
 
-
                 await ws.send(
-
                     json.dumps({
 
-                        "op":"subscribe",
+                        "op": "subscribe",
 
-                        "args":[
+                        "args": [
 
                             {
 
-                                "channel":"tickers",
+                                "channel": "tickers",
 
-                                "instId":symbol
+                                "instId": symbol
 
                             }
 
@@ -75,13 +57,11 @@ async def monitor_prices(bot):
                         ]
 
                     })
-
                 )
 
 
-
                 print(
-                    "PRICE MONITOR STARTED"
+                    "✅ Price monitor started"
                 )
 
 
@@ -89,11 +69,11 @@ async def monitor_prices(bot):
                 while True:
 
 
-                    message = await ws.recv()
+                    msg = await ws.recv()
 
 
-                    data=json.loads(
-                        message
+                    data = json.loads(
+                        msg
                     )
 
 
@@ -103,29 +83,26 @@ async def monitor_prices(bot):
 
 
 
-                    prices={}
+                    prices = {}
 
 
 
                     for item in data["data"]:
 
 
-                        symbol=(
+                        symbol = (
 
                             item["instId"]
 
                             .replace(
-
                                 "-",
-
                                 "/"
-
                             )
 
                         )
 
 
-                        prices[symbol]=float(
+                        prices[symbol] = float(
 
                             item["last"]
 
@@ -134,9 +111,7 @@ async def monitor_prices(bot):
 
 
                     triggered = check_price(
-
                         prices
-
                     )
 
 
@@ -147,11 +122,8 @@ async def monitor_prices(bot):
                         await bot.send_message(
 
                             chat_id=int(
-
                                 alert["user"]
-
                             ),
-
 
                             text=(
 
@@ -177,11 +149,8 @@ async def monitor_prices(bot):
 
 
             print(
-
-                "Monitor error:",
-
+                "Price monitor error:",
                 e
-
             )
 
 

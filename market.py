@@ -1,243 +1,60 @@
+import aiohttp
 import time
 
-import ccxt
-import pandas as pd
-
-
-
-exchange = ccxt.okx({
-
-    "enableRateLimit": True,
-
-    "timeout": 5000
-
-})
-
-
-
 CACHE = {}
-
-CACHE_TIME = 3
-
+CACHE_TIME = 2
 
 
-
-
-def normalize_symbol(symbol):
-
-
-    symbol = symbol.upper()
-
-
-    if "/" not in symbol:
-
-        symbol += "/USDT"
-
-
-    return symbol
-
-
-
-
-
-def get_candles(
-
-        symbol,
-
-        timeframe="15m",
-
-        limit=120
-
-):
-
-
-    symbol = normalize_symbol(
-        symbol
-    )
-
-
-    key = (
-
-        symbol,
-
-        timeframe,
-
-        limit
-
-    )
-
+async def get_candles(symbol="BTC-USDT", limit=100):
+    global CACHE
 
     now = time.time()
 
-
-
-    # быстрый кеш
+    key = f"{symbol}_{limit}"
 
     if key in CACHE:
-
-
         if now - CACHE[key]["time"] < CACHE_TIME:
-
             return CACHE[key]["data"]
 
+    url = "https://www.okx.com/api/v5/market/candles"
 
-
-
+    params = {
+        "instId": symbol,
+        "bar": "1m",
+        "limit": str(limit)
+    }
 
     try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                url,
+                params=params,
+                timeout=5
+            ) as r:
+
+                data = await r.json()
+
+                candles = []
+
+                for c in reversed(data["data"]):
+                    candles.append({
+                        "time": c[0],
+                        "open": float(c[1]),
+                        "high": float(c[2]),
+                        "low": float(c[3]),
+                        "close": float(c[4]),
+                        "volume": float(c[5])
+                    })
 
 
-        data = exchange.fetch_ohlcv(
+                CACHE[key] = {
+                    "time": now,
+                    "data": candles
+                }
 
-            symbol,
-
-            timeframe=timeframe,
-
-            limit=limit
-
-        )
-
-
-
-        df = pd.DataFrame(
-
-            data,
-
-            columns=[
-
-                "timestamp",
-
-                "open",
-
-                "high",
-
-                "low",
-
-                "close",
-
-                "volume"
-
-            ]
-
-        )
-
-
-
-        df["timestamp"] = pd.to_datetime(
-
-            df["timestamp"],
-
-            unit="ms"
-
-        )
-
-
-
-        CACHE[key] = {
-
-            "time": now,
-
-            "data": df
-
-        }
-
-
-
-        return df
-
+                return candles
 
 
     except Exception as e:
-
-
-        if key in CACHE:
-
-            return CACHE[key]["data"]
-
-
-        raise e
-
-
-
-
-
-
-def get_price(symbol):
-
-
-    symbol = normalize_symbol(
-        symbol
-    )
-
-
-    ticker = exchange.fetch_ticker(
-
-        symbol
-
-    )
-
-
-    return float(
-
-        ticker["last"]
-
-    )
-
-
-
-
-
-def get_market_snapshot(symbol):
-
-
-    df = get_candles(
-
-        symbol
-
-    )
-
-
-    last = df.iloc[-1]
-
-
-
-    return {
-
-
-        "symbol": normalize_symbol(
-
-            symbol
-
-        ),
-
-
-        "price": float(
-
-            last.close
-
-        ),
-
-
-        "candles":[
-
-
-            {
-
-                "open":float(row.open),
-
-                "high":float(row.high),
-
-                "low":float(row.low),
-
-                "close":float(row.close),
-
-                "volume":float(row.volume)
-
-            }
-
-
-            for _, row in df.tail(30).iterrows()
-
-        ]
-
-    }
+        print("MARKET ERROR:", e)
+        return []

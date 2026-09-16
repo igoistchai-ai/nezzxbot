@@ -3,11 +3,9 @@ import asyncio
 
 from bot import main, bot
 
+from price_monitor import monitor_prices
 
 from health_server import start_health
-
-
-from price_monitor import monitor_prices
 
 
 
@@ -16,13 +14,13 @@ from price_monitor import monitor_prices
 async def start():
 
 
-    # запуск страницы для Render/UptimeRobot
+    # Render / UptimeRobot
 
     await start_health()
 
 
 
-    # запуск мониторинга цен
+    # уведомления цены
 
     asyncio.create_task(
 
@@ -32,7 +30,7 @@ async def start():
 
 
 
-    # запуск Telegram
+    # Telegram
 
     await main()
 
@@ -41,7 +39,6 @@ async def start():
 
 
 if __name__ == "__main__":
-
 
     asyncio.run(
         start()

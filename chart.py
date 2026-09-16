@@ -1,213 +1,144 @@
-import mplfinance as mpf
-from pathlib import Path
-import pandas as pd
+from PIL import Image, ImageDraw, ImageFont
+import time
 
 
+def create_chart(candles, symbol="BTC-USDT", signal=None):
 
-def create_chart(
-        df,
-        symbol,
-        analysis=None,
-        timeframe="15m"
-):
+    width = 900
+    height = 500
 
-    data = df.copy()
-
-
-    data["timestamp"] = pd.to_datetime(
-        data["timestamp"]
+    img = Image.new(
+        "RGB",
+        (width, height),
+        "black"
     )
 
-
-    data = data.tail(80)
-
-
-    data = data.rename(
-        columns={
-
-            "timestamp": "Date",
-            "open": "Open",
-            "high": "High",
-            "low": "Low",
-            "close": "Close",
-            "volume": "Volume"
-
-        }
-    )
+    draw = ImageDraw.Draw(img)
 
 
-    data = data.set_index(
-        "Date"
-    )
-
-
-
-    # EMA
-
-    data["EMA20"] = (
-        data["Close"]
-        .ewm(
-            span=20,
-            adjust=False
+    if not candles:
+        draw.text(
+            (20,20),
+            "NO DATA",
+            fill="white"
         )
-        .mean()
-    )
+        return img
 
 
-    data["EMA50"] = (
-        data["Close"]
-        .ewm(
-            span=50,
-            adjust=False
-        )
-        .mean()
-    )
-
-
-
-    plots = [
-
-        mpf.make_addplot(
-            data["EMA20"]
-        ),
-
-        mpf.make_addplot(
-            data["EMA50"]
-        )
-
+    prices = [
+        x["close"]
+        for x in candles
     ]
 
 
-
-    levels = []
-
-
-    colors = []
+    mn = min(prices)
+    mx = max(prices)
 
 
-
-    if analysis:
-
-
-        if analysis.get("entry"):
-
-            levels.append(
-                analysis["entry"]
-            )
-
-            colors.append(
-                "green"
-            )
+    def y(price):
+        return height - (
+            (price-mn)/(mx-mn)
+        )*350 - 50
 
 
-
-        if analysis.get("tp1"):
-
-            levels.append(
-                analysis["tp1"]
-            )
-
-            colors.append(
-                "green"
-            )
+    step = width // len(candles)
 
 
+    for i,c in enumerate(candles):
 
-        if analysis.get("tp2"):
+        x = i*step+20
 
-            levels.append(
-                analysis["tp2"]
-            )
-
-            colors.append(
-                "green"
-            )
-
-
-
-        if analysis.get("sl"):
-
-            levels.append(
-                analysis["sl"]
-            )
-
-            colors.append(
-                "red"
-            )
-
-
-
-    Path(
-        "charts"
-    ).mkdir(
-        exist_ok=True
-    )
-
-
-
-    file = (
-
-        "charts/"
-
-        +
-
-        symbol.replace(
-            "/",
-            "_"
+        color = (
+            "green"
+            if c["close"] >= c["open"]
+            else "red"
         )
 
-        +
 
-        ".png"
+        draw.line(
+            (
+                x,
+                y(c["high"]),
+                x,
+                y(c["low"])
+            ),
+            fill=color,
+            width=2
+        )
 
+
+        draw.rectangle(
+            (
+                x-3,
+                y(c["open"]),
+                x+3,
+                y(c["close"])
+            ),
+            fill=color
+        )
+
+
+    price = candles[-1]["close"]
+
+    draw.line(
+        (
+            0,
+            y(price),
+            width,
+            y(price)
+        ),
+        fill="yellow",
+        width=2
     )
 
 
-
-    mpf.plot(
-
-        data,
-
-        type="candle",
-
-        style="charles",
-
-        volume=True,
-
-
-        addplot=plots,
-
-
-        hlines={
-
-            "hlines": levels,
-
-            "colors": colors,
-
-            "linestyle": "--",
-
-            "linewidths": 1.2
-
-        } if levels else None,
-
-
-        title=f"{symbol} {timeframe}",
-
-
-        figsize=(14,8),
-
-
-        savefig={
-
-            "fname": file,
-
-            "dpi":120,
-
-            "bbox_inches":"tight"
-
-        }
-
+    draw.text(
+        (20,20),
+        f"{symbol}  PRICE: {price}",
+        fill="white"
     )
 
 
-    return file
+    if signal:
+
+        entry = signal.get("entry")
+        tp = signal.get("tp")
+        sl = signal.get("sl")
+
+
+        for value,name,color in [
+            (entry,"ENTRY","cyan"),
+            (tp,"TP","green"),
+            (sl,"SL","red")
+        ]:
+
+            if value:
+
+                yy=y(value)
+
+                draw.line(
+                    (
+                        0,
+                        yy,
+                        width,
+                        yy
+                    ),
+                    fill=color,
+                    width=3
+                )
+
+                draw.text(
+                    (
+                        10,
+                        yy-20
+                    ),
+                    f"{name}: {value}",
+                    fill=color
+                )
+
+
+    path=f"/tmp/{symbol}_{int(time.time())}.png"
+
+    img.save(path)
+
+    return path
